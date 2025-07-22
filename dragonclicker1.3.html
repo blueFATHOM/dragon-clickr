@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dragon Clicker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the game */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: auto; /* Allow scrolling on the body */
+            padding: 20px; /* Add some padding around the container */
+            box-sizing: border-box;
+        }
+
+        .game-container {
+            background-color: #2d3748; /* Slightly lighter dark background */
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            padding: 2rem;
+            max-width: 900px; /* Wider for shop next to dragon */
+            width: 100%;
+            text-align: center;
+            border: 2px solid #4a5568; /* Subtle border */
+            position: relative;
+            overflow: visible; /* Allow content to overflow if needed, body will scroll */
+        }
+
+        .main-content-area {
+            display: flex;
+            flex-direction: column; /* Stack content vertically */
+            align-items: center;
+            width: 100%;
+        }
+
+        .dragon-and-shop-wrapper {
+            display: flex;
+            flex-direction: column; /* Default to column on smaller screens */
+            align-items: center;
+            width: 100%;
+            gap: 1rem; /* Space between dragon area and shop */
+        }
+
+        @media (min-width: 768px) {
+            .dragon-and-shop-wrapper {
+                flex-direction: row; /* Row layout on larger screens */
+                justify-content: center;
+                align-items: flex-start; /* Align top for varied heights */
+            }
+        }
+
+        .dragon-area {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px; /* Ensure space for fire to appear */
+            flex-shrink: 0; /* Don't shrink the dragon area */
+            padding: 1rem;
+            background-color: #1a202c;
+            border-radius: 1rem;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .dragon-emoji {
+            font-size: 10rem; /* Large dragon emoji */
+            cursor: pointer;
+            transition: transform 0.1s ease-out;
+            user-select: none; /* Prevent text selection */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        .dragon-emoji:active {
+            transform: scale(0.95); /* Shrink on click */
+        }
+
+        .dragon-emoji.animate-click {
+            animation: pulse 0.3s ease-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .click-animation {
+            position: absolute;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #f6ad55; /* Gold-like color */
+            pointer-events: none; /* Allow clicks to pass through */
+            animation: fadeOutUp 1s forwards;
+            opacity: 0;
+            text-shadow: 0 0 5px rgba(246, 173, 85, 0.7);
+        }
+
+        @keyframes fadeOutUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-50px); }
+        }
+
+        .upgrade-section, .shop-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Responsive grid, slightly smaller for shop side-by-side */
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #4a5568;
+        }
+
+        .shop-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1; /* Allow shop to take available space */
+            min-width: 280px; /* Ensure shop has a minimum width */
+            padding: 1rem;
+            background-color: #1a202c;
+            border-radius: 1rem;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .upgrade-button, .shop-button {
+            background-color: #4299e1; /* Blue for upgrades */
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.75rem; /* Rounded corners */
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-out;
+            border: none;
+            outline: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .shop-button {
+            background-color: #9F7AEA; /* Purple for shop items */
+        }
+
+        .upgrade-button:hover:not(:disabled) {
+            background-color: #3182ce; /* Darker blue on hover */
+            transform: translateY(-2px);
+        }
+        .shop-button:hover:not(:disabled) {
+            background-color: #805AD5; /* Darker purple on hover */
+            transform: translateY(-2px);
+        }
+
+        .upgrade-button:active:not(:disabled), .shop-button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .upgrade-button:disabled, .shop-button:disabled {
+            background-color: #6c7a89; /* Grey when disabled */
+            cursor: not-allowed;
+            opacity: 0.7;
+            box-shadow: none;
+        }
+
+        .upgrade-cost, .shop-cost {
+            font-size: 0.9rem;
+            color: #a0aec0; /* Lighter grey for cost */
+            margin-top: 0.25rem;
+        }
+
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #48bb78; /* Green for success */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 1000;
+        }
+
+        .message-box.show {
+            opacity: 1;
+        }
+
+        /* Fire element styles */
+        .fire-element {
+            position: absolute;
+            font-size: 3rem; /* Size of the fire emoji */
+            cursor: pointer;
+            z-index: 500; /* Above dragon, below message box */
+            animation: fadeInOut 2s ease-in-out forwards; /* Fade in and out */
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: scale(0.5); }
+            20% { opacity: 1; transform: scale(1); }
+            80% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+
+        /* Game Over Overlay */
+        .game-over-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+
+        .game-over-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .game-over-content {
+            background-color: #2d3748;
+            padding: 3rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            text-align: center;
+        }
+
+        .restart-button {
+            background-color: #48bb78; /* Green for restart */
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-out;
+            border: none;
+            outline: none;
+            margin-top: 1.5rem;
+        }
+
+        .restart-button:hover {
+            background-color: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .restart-button:active {
+            transform: translateY(0);
+        }
+
+        .helper-dragons-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 1rem;
+            min-height: 40px; /* Ensure space even if no dragons */
+        }
+
+        .helper-dragon-emoji {
+            font-size: 2.5rem;
+            margin: 0 5px;
+            animation: bounce 0.8s infinite alternate;
+        }
+
+        @keyframes bounce {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-10px); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .game-container {
+                padding: 1.5rem;
+            }
+            .dragon-emoji {
+                font-size: 8rem;
+            }
+            .click-animation {
+                font-size: 1.5rem;
+            }
+            .upgrade-section, .shop-content {
+                grid-template-columns: 1fr; /* Stack upgrades/shop items on small screens */
+            }
+            .fire-element {
+                font-size: 2rem;
+            }
+            .game-over-content {
+                padding: 2rem;
+            }
+            .dragon-and-shop-wrapper {
+                flex-direction: column; /* Ensure column layout on small screens */
+            }
+            .shop-section {
+                margin-top: 1rem; /* Add space when stacked */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="text-4xl font-bold mb-4 text-yellow-400">Dragon Clickr by Virat</h1>
+        <div class="score-display mb-6">
+            <p class="text-2xl">Gold: <span id="gold-count" class="font-semibold text-green-400">0</span></p>
+            <p class="text-lg text-gray-400">Gold per second: <span id="gps-count">0</span></p>
+        </div>
+
+        <div class="dragon-and-shop-wrapper">
+            <div class="dragon-area" id="dragon-area">
+                <span id="dragon" class="dragon-emoji">🐲</span> <div id="helper-dragons-container" class="helper-dragons-container">
+                    </div>
+            </div>
+
+            <div class="shop-section" id="shop-section">
+                <h2 class="text-3xl font-bold mb-4 text-purple-400">Shop</h2>
+                <div class="shop-content" id="shop-content">
+                    </div>
+            </div>
+        </div>
+
+        <h2 class="text-3xl font-bold mb-4 text-blue-400 mt-6">Upgrades</h2>
+        <div class="upgrade-section" id="upgrade-section">
+            </div>
+    </div>
+
+    <div id="message-box" class="message-box"></div>
+
+    <div id="game-over-overlay" class="game-over-overlay">
+        <div class="game-over-content">
+            <h2 class="text-5xl font-bold text-red-500 mb-4">GAME OVER!</h2>
+            <p class="text-xl text-gray-300 mb-6">The fire consumed your hoard!</p>
+            <button id="restart-button" class="restart-button">Restart Game</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state variables
+        let gold = 0;
+        let gps = 0; // Gold per second
+        let cpc = 1; // Gold per click
+        let isGameOver = false;
+        let goldIntervalId = null;
+        let fireSpawnTimeoutId = null; // Use timeout for more controlled random spawning
+        let currentFireElement = null; // To keep track of the active fire element
+        let numHelperDragons = 0;
+
+        // Dragon Skins obtained by clicking fire
+        const commonSkins = ['🐉', '✨', '💎', '👑'];
+        const legendarySkins = [
+            { emoji: '🤌', name: 'Italian Brainrot', probability: 0.05 }, // 5% chance
+            { emoji: '🌈', name: 'Rainbow Fire', probability: 0.01 }    // 1% chance
+        ];
+        let unlockedSkins = new Set(); // Keep track of unlocked skins from fire clicks
+        let currentDragonSkin = '🐲'; // Initial skin is now 🐲
+
+        // Purchased Skins
+        const purchasableSkins = [
+            { id: 'dark-fire', name: 'Dark Fire Skin', emoji: '🔥', cost: 5000 },
+            { id: 'gold-katana', name: 'Gold Katana Skin', emoji: '🗡️', cost: 10000 },
+            { id: 'tralalero', name: 'Tralalero Tralala Skin', emoji: '🕺', cost: 25000 }
+        ];
+        let purchasedSkins = new Set(); // Keep track of skins purchased from the shop
+
+        // Shop Items
+        const shopItems = [
+            {
+                id: 'helper-dragon',
+                name: 'Small Helper Dragon',
+                description: 'Adds +5 Gold per second.',
+                emoji: '🐉',
+                baseCost: 1000,
+                costMultiplier: 1.5, // Helper dragon cost increases
+                level: 0,
+                effect: { type: 'gps', value: 5 }
+            }
+        ];
+
+        // DOM elements
+        const goldCountElement = document.getElementById('gold-count');
+        const gpsCountElement = document.getElementById('gps-count');
+        const dragonElement = document.getElementById('dragon');
+        const upgradeSection = document.getElementById('upgrade-section');
+        const shopContent = document.getElementById('shop-content'); // Changed from shopSection for content
+        const messageBox = document.getElementById('message-box');
+        const dragonArea = document.getElementById('dragon-area'); // Get dragon area for fire spawning
+        const gameOverOverlay = document.getElementById('game-over-overlay');
+        const restartButton = document.getElementById('restart-button');
+        const helperDragonsContainer = document.getElementById('helper-dragons-container');
+
+        // Upgrade definitions (unchanged from previous version)
+        const upgrades = [
+            {
+                id: 'fire-breath',
+                name: 'Fire Breath',
+                description: 'Increases gold per click.',
+                baseCost: 10,
+                costMultiplier: 1.5,
+                effect: { type: 'cpc', value: 1 }, // +1 gold per click
+                level: 0
+            },
+            {
+                id: 'dragon-nest',
+                name: 'Dragon Nest',
+                description: 'Generates passive gold per second.',
+                baseCost: 50,
+                costMultiplier: 1.7,
+                effect: { type: 'gps', value: 1 }, // +1 gold per second
+                level: 0
+            },
+            {
+                id: 'hoard-expansion',
+                name: 'Hoard Expansion',
+                description: 'Significantly boosts gold per click.',
+                baseCost: 200,
+                costMultiplier: 2.0,
+                effect: { type: 'cpc', value: 5 }, // +5 gold per click
+                level: 0
+            },
+            {
+                id: 'ancient-magic',
+                name: 'Ancient Magic',
+                description: 'Massive passive gold generation.',
+                baseCost: 1000,
+                costMultiplier: 2.5,
+                effect: { type: 'gps', value: 10 }, // +10 gold per second
+                level: 0
+            },
+            {
+                id: 'dragon-scales',
+                name: 'Dragon Scales',
+                description: 'Hardens scales, increasing gold per click.',
+                baseCost: 5000,
+                costMultiplier: 1.6,
+                effect: { type: 'cpc', value: 25 }, // +25 gold per click
+                level: 0
+            },
+            {
+                id: 'gold-fountain',
+                name: 'Gold Fountain',
+                description: 'A magical fountain that constantly spews gold.',
+                baseCost: 25000,
+                costMultiplier: 1.8,
+                effect: { type: 'gps', value: 50 }, // +50 gold per second
+                level: 0
+            },
+            {
+                id: 'elemental-attunement',
+                name: 'Elemental Attunement',
+                description: 'Boosts both click and passive gold.',
+                baseCost: 100000,
+                costMultiplier: 2.2,
+                effect: { type: 'both', cpcValue: 100, gpsValue: 20 }, // +100 cpc, +20 gps
+                level: 0
+            },
+            {
+                id: 'mythic-aura',
+                name: 'Mythic Aura',
+                description: 'The dragon radiates immense wealth.',
+                baseCost: 500000,
+                costMultiplier: 2.8,
+                effect: { type: 'gps', value: 200 }, // +200 gold per second
+                level: 0
+            },
+            {
+                id: 'cosmic-essence',
+                name: 'Cosmic Essence',
+                description: 'Unlocks ultimate gold generation.',
+                baseCost: 2000000,
+                costMultiplier: 3.0,
+                effect: { type: 'cpc', value: 500 }, // +500 gold per click
+                level: 0
+            }
+        ];
+
+        // --- Game Functions ---
+
+        /**
+         * Updates the displayed gold and GPS counts.
+         */
+        function updateUI() {
+            goldCountElement.textContent = Math.floor(gold);
+            gpsCountElement.textContent = gps;
+            // Update upgrade button states
+            upgrades.forEach(upgrade => {
+                const button = document.getElementById(`buy-${upgrade.id}`);
+                if (button) {
+                    const currentCost = calculateUpgradeCost(upgrade);
+                    button.querySelector('.upgrade-cost').textContent = `Cost: ${Math.floor(currentCost)} Gold`;
+                    button.querySelector('.upgrade-level').textContent = `Level: ${upgrade.level}`;
+                    button.disabled = gold < currentCost || isGameOver; // Disable if game over
+                }
+            });
+            // Update shop button states
+            shopItems.forEach(item => {
+                const button = document.getElementById(`buy-${item.id}`);
+                if (button) {
+                    const currentCost = calculateShopItemCost(item);
+                    button.querySelector('.shop-cost').textContent = `Cost: ${Math.floor(currentCost)} Gold`;
+                    if (item.id === 'helper-dragon') {
+                        button.querySelector('.shop-level').textContent = `Owned: ${item.level}`;
+                    }
+                    button.disabled = gold < currentCost || isGameOver;
+                }
+            });
+            // Update purchasable skins
+            purchasableSkins.forEach(skin => {
+                const button = document.getElementById(`buy-${skin.id}`);
+                if (button) {
+                    button.disabled = gold < skin.cost || isGameOver || purchasedSkins.has(skin.emoji);
+                    button.textContent = purchasedSkins.has(skin.emoji) ? `${skin.name} (Owned)` : `${skin.name} (${skin.emoji}) - ${skin.cost} Gold`;
+                }
+            });
+            updateHelperDragonsDisplay();
+        }
+
+        /**
+         * Calculates the current cost of an upgrade based on its level.
+         * @param {object} upgrade - The upgrade object.
+         * @returns {number} The current cost of the upgrade.
+         */
+        function calculateUpgradeCost(upgrade) {
+            return upgrade.baseCost * (upgrade.costMultiplier ** upgrade.level);
+        }
+
+        /**
+         * Calculates the current cost of a shop item based on its level (for stackable items).
+         * @param {object} item - The shop item object.
+         * @returns {number} The current cost of the item.
+         */
+        function calculateShopItemCost(item) {
+            if (item.costMultiplier) {
+                return item.baseCost * (item.costMultiplier ** item.level);
+            }
+            return item.baseCost; // For items with fixed cost like skins
+        }
+
+        /**
+         * Handles clicking the dragon.
+         */
+        function clickDragon(event) {
+            if (isGameOver) return; // Do nothing if game is over
+            gold += cpc;
+            updateUI();
+            triggerDragonAnimation();
+            createClickAnimation(event);
+        }
+
+        /**
+         * Triggers a visual animation on the dragon when clicked.
+         */
+        function triggerDragonAnimation() {
+            dragonElement.classList.remove('animate-click'); // Reset animation
+            void dragonElement.offsetWidth; // Trigger reflow
+            dragonElement.classList.add('animate-click'); // Add animation
+        }
+
+        /**
+         * Creates a floating text animation showing gold earned.
+         * @param {Event} event - The click event.
+         */
+        function createClickAnimation(event) {
+            const animationDiv = document.createElement('div');
+            animationDiv.textContent = `+${cpc}`;
+            animationDiv.classList.add('click-animation');
+
+            // Position the animation near the click
+            const rect = dragonElement.getBoundingClientRect();
+            // Get click position relative to the dragon-area
+            const clickX = event.clientX - dragonArea.getBoundingClientRect().left;
+            const clickY = event.clientY - dragonArea.getBoundingClientRect().top;
+
+            animationDiv.style.left = `${clickX}px`;
+            animationDiv.style.top = `${clickY}px`;
+            animationDiv.style.position = 'absolute'; // Ensure absolute positioning relative to dragon-area
+            animationDiv.style.transform = 'translate(-50%, -50%)'; // Center it
+
+            dragonArea.appendChild(animationDiv); // Append to dragonArea to respect its relative positioning
+
+            // Remove the animation element after it finishes
+            animationDiv.addEventListener('animationend', () => {
+                animationDiv.remove();
+            });
+        }
+
+        /**
+         * Purchases an upgrade.
+         * @param {string} upgradeId - The ID of the upgrade to purchase.
+         */
+        function buyUpgrade(upgradeId) {
+            if (isGameOver) return; // Do nothing if game is over
+
+            const upgrade = upgrades.find(u => u.id === upgradeId);
+            if (!upgrade) {
+                showMessage('Error: Upgrade not found!', 'red');
+                return;
+            }
+
+            const currentCost = calculateUpgradeCost(upgrade);
+
+            if (gold >= currentCost) {
+                gold -= currentCost;
+                upgrade.level++;
+
+                if (upgrade.effect.type === 'cpc') {
+                    cpc += upgrade.effect.value;
+                } else if (upgrade.effect.type === 'gps') {
+                    gps += upgrade.effect.value;
+                } else if (upgrade.effect.type === 'both') {
+                    cpc += upgrade.effect.cpcValue;
+                    gps += upgrade.effect.gpsValue;
+                }
+                showMessage(`${upgrade.name} purchased!`, 'green');
+                updateUI();
+            } else {
+                showMessage('Not enough gold!', 'red');
+            }
+        }
+
+        /**
+         * Purchases a shop item (skin or helper dragon).
+         * @param {string} itemId - The ID of the item to purchase.
+         */
+        function buyShopItem(itemId) {
+            if (isGameOver) return;
+
+            const item = shopItems.find(i => i.id === itemId) || purchasableSkins.find(s => s.id === itemId);
+            if (!item) {
+                showMessage('Error: Item not found!', 'red');
+                return;
+            }
+
+            const currentCost = item.id === 'helper-dragon' ? calculateShopItemCost(item) : item.cost;
+
+            if (gold >= currentCost) {
+                if (item.id === 'helper-dragon') {
+                    gold -= currentCost;
+                    item.level++; // Increment level for helper dragons
+                    gps += item.effect.value; // Add GPS from helper dragon
+                    numHelperDragons++; // Increment the count of helper dragons
+                    showMessage(`${item.name} purchased!`, 'green');
+                } else { // It's a skin
+                    if (purchasedSkins.has(item.emoji)) {
+                        showMessage('You already own this skin!', 'red');
+                        return;
+                    }
+                    gold -= currentCost;
+                    purchasedSkins.add(item.emoji);
+                    currentDragonSkin = item.emoji; // Immediately apply the new skin
+                    dragonElement.textContent = currentDragonSkin;
+                    showMessage(`${item.name} purchased and applied!`, 'green');
+                }
+                updateUI();
+            } else {
+                showMessage('Not enough gold!', 'red');
+            }
+        }
+
+        /**
+         * Displays a temporary message to the user.
+         * @param {string} message - The message to display.
+         * @param {string} type - 'green' for success, 'red' for error.
+         */
+        function showMessage(message, type) {
+            messageBox.textContent = message;
+            messageBox.classList.remove('bg-red-500', 'bg-green-500');
+            messageBox.classList.add(type === 'green' ? 'bg-green-500' : 'bg-red-500');
+            messageBox.classList.add('show');
+
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 2000); // Message disappears after 2 seconds
+        }
+
+        /**
+         * Initializes the upgrade buttons in the UI.
+         */
+        function initializeUpgrades() {
+            upgradeSection.innerHTML = ''; // Clear existing upgrades before re-initializing
+            upgrades.forEach(upgrade => {
+                // Reset upgrade level when initializing
+                upgrade.level = 0; // Ensure levels are reset on new game
+                const currentCost = calculateUpgradeCost(upgrade);
+                const buttonHtml = `
+                    <button id="buy-${upgrade.id}" class="upgrade-button" ${gold < currentCost ? 'disabled' : ''}>
+                        <span class="text-lg">${upgrade.name}</span>
+                        <span class="upgrade-level text-sm text-gray-300">Level: ${upgrade.level}</span>
+                        <span class="upgrade-cost text-sm">Cost: ${Math.floor(currentCost)} Gold</span>
+                        <span class="text-xs text-gray-400">${upgrade.description}</span>
+                    </button>
+                `;
+                upgradeSection.insertAdjacentHTML('beforeend', buttonHtml);
+
+                // Add event listener to the newly created button
+                document.getElementById(`buy-${upgrade.id}`).addEventListener('click', () => buyUpgrade(upgrade.id));
+            });
+        }
+
+        /**
+         * Initializes the shop items in the UI.
+         */
+        function initializeShop() {
+            shopContent.innerHTML = ''; // Clear existing shop items before re-initializing
+
+            // Add purchasable skins
+            purchasableSkins.forEach(skin => {
+                const buttonHtml = `
+                    <button id="buy-${skin.id}" class="shop-button" ${gold < skin.cost || purchasedSkins.has(skin.emoji) ? 'disabled' : ''}>
+                        <span class="text-lg">${skin.name}</span>
+                        <span class="text-4xl my-1">${skin.emoji}</span>
+                        <span class="shop-cost text-sm">Cost: ${skin.cost} Gold</span>
+                    </button>
+                `;
+                shopContent.insertAdjacentHTML('beforeend', buttonHtml);
+                document.getElementById(`buy-${skin.id}`).addEventListener('click', () => buyShopItem(skin.id));
+            });
+
+            // Add other shop items (like helper dragon)
+            shopItems.forEach(item => {
+                // Reset level for stackable items like helper dragon on new game
+                if (item.id === 'helper-dragon') {
+                    item.level = 0;
+                }
+                const currentCost = calculateShopItemCost(item);
+                const buttonHtml = `
+                    <button id="buy-${item.id}" class="shop-button" ${gold < currentCost ? 'disabled' : ''}>
+                        <span class="text-lg">${item.name}</span>
+                        <span class="text-4xl my-1">${item.emoji}</span>
+                        ${item.id === 'helper-dragon' ? `<span class="shop-level text-sm text-gray-300">Owned: ${item.level}</span>` : ''}
+                        <span class="shop-cost text-sm">Cost: ${Math.floor(currentCost)} Gold</span>
+                        <span class="text-xs text-gray-400">${item.description}</span>
+                    </button>
+                `;
+                shopContent.insertAdjacentHTML('beforeend', buttonHtml);
+                document.getElementById(`buy-${item.id}`).addEventListener('click', () => buyShopItem(item.id));
+            });
+        }
+
+        /**
+         * Updates the display of helper dragons.
+         */
+        function updateHelperDragonsDisplay() {
+            helperDragonsContainer.innerHTML = '';
+            for (let i = 0; i < numHelperDragons; i++) {
+                const helperDragonEmoji = document.createElement('span');
+                helperDragonEmoji.classList.add('helper-dragon-emoji');
+                helperDragonEmoji.textContent = '🐉';
+                helperDragonsContainer.appendChild(helperDragonEmoji);
+            }
+        }
+
+
+        /**
+         * Spawns a fire element randomly on the screen.
+         */
+        function spawnFire() {
+            if (isGameOver || currentFireElement) { // Don't spawn if game is over or fire already exists
+                return;
+            }
+
+            const fire = document.createElement('div');
+            fire.textContent = '🔥';
+            fire.classList.add('fire-element');
+
+            // Get dimensions of the dragon-area to position fire within it
+            const dragonAreaRect = dragonArea.getBoundingClientRect();
+            // Adjust offsets for absolute positioning within the relative parent (.dragon-area)
+            const minX = 0;
+            const maxX = dragonAreaRect.width - 50; // 50px for fire element size, assuming font-size 3rem roughly 48px
+            const minY = 0;
+            const maxY = dragonAreaRect.height - 50;
+
+            const randomX = Math.random() * (maxX - minX) + minX;
+            const randomY = Math.random() * (maxY - minY) + minY;
+
+            fire.style.left = `${randomX}px`;
+            fire.style.top = `${randomY}px`;
+
+            // Append to dragon-area for relative positioning
+            dragonArea.appendChild(fire);
+            currentFireElement = fire; // Store reference to the current fire
+
+            // Remove fire after a short duration if not clicked
+            const disappearTimeout = setTimeout(() => {
+                if (currentFireElement === fire) { // Only remove if it's still the active fire
+                    fire.remove();
+                    currentFireElement = null;
+                    scheduleNextFireSpawn(); // Schedule next spawn after this one disappears
+                }
+            }, 3000); // Fire disappears after 3 seconds
+
+            fire.addEventListener('click', () => handleFireClick(fire, disappearTimeout));
+        }
+
+        /**
+         * Schedules the next fire spawn.
+         */
+        function scheduleNextFireSpawn() {
+            if (isGameOver) return;
+            const randomDelay = Math.random() * 5000 + 5000; // Between 5 and 10 seconds
+            fireSpawnTimeoutId = setTimeout(spawnFire, randomDelay);
+        }
+
+        /**
+         * Handles clicking the fire element.
+         * @param {HTMLElement} fireElementClicked - The fire element that was clicked.
+         * @param {number} disappearTimeoutId - The ID of the timeout to clear.
+         */
+        function handleFireClick(fireElementClicked, disappearTimeoutId) {
+            if (isGameOver) return;
+
+            clearTimeout(disappearTimeoutId); // Stop the fire from disappearing naturally
+            fireElementClicked.remove(); // Remove the fire immediately
+            currentFireElement = null; // Clear the reference
+            scheduleNextFireSpawn(); // Schedule next fire spawn immediately
+
+            const chance = Math.random(); // 0 to 1
+
+            if (chance < 0.3) { // 30% chance for game over
+                showMessage('The fire consumed your hoard!', 'red');
+                endGame();
+            } else { // 70% chance for new skin
+                unlockNewSkin();
+            }
+        }
+
+        /**
+         * Unlocks a new dragon skin (from random drops), prioritizing legendary skins based on probability.
+         */
+        function unlockNewSkin() {
+            const roll = Math.random();
+
+            // Try to unlock legendary skins first
+            // Sort by probability descending to prioritize rarer skins if chances overlap
+            legendarySkins.sort((a, b) => b.probability - a.probability);
+
+            for (const legendary of legendarySkins) {
+                if (roll < legendary.probability && !unlockedSkins.has(legendary.emoji)) {
+                    unlockedSkins.add(legendary.emoji);
+                    currentDragonSkin = legendary.emoji;
+                    dragonElement.textContent = currentDragonSkin;
+                    showMessage(`New Legendary Skin Unlocked: ${legendary.name} (${legendary.emoji})!`, 'green');
+                    return; // Stop after unlocking a legendary skin
+                }
+            }
+
+            // If no legendary skin was unlocked, try to unlock a common skin
+            const availableCommonSkins = commonSkins.filter(skin => !unlockedSkins.has(skin));
+
+            if (availableCommonSkins.length > 0) {
+                const newSkin = availableCommonSkins[Math.floor(Math.random() * availableCommonSkins.length)];
+                unlockedSkins.add(newSkin);
+                currentDragonSkin = newSkin;
+                dragonElement.textContent = currentDragonSkin;
+                showMessage(`New Dragon Skin Unlocked: ${newSkin}!`, 'green');
+            } else {
+                showMessage('All common dragon skins unlocked!', 'green');
+            }
+        }
+
+        /**
+         * Ends the game.
+         */
+        function endGame() {
+            isGameOver = true;
+            clearInterval(goldIntervalId); // Stop passive gold
+            clearTimeout(fireSpawnTimeoutId); // Stop fire spawning
+            if (currentFireElement) {
+                currentFireElement.remove();
+                currentFireElement = null;
+            }
+            dragonElement.removeEventListener('click', clickDragon); // Disable dragon clicks
+            upgrades.forEach(upgrade => {
+                const button = document.getElementById(`buy-${upgrade.id}`);
+                if (button) button.disabled = true; // Disable all upgrade buttons
+            });
+            shopItems.forEach(item => {
+                const button = document.getElementById(`buy-${item.id}`);
+                if (button) button.disabled = true; // Disable all shop buttons
+            });
+            purchasableSkins.forEach(skin => {
+                const button = document.getElementById(`buy-${skin.id}`);
+                if (button) button.disabled = true; // Disable all skin buttons
+            });
+            gameOverOverlay.classList.add('show'); // Show game over screen
+        }
+
+        /**
+         * Restarts the game.
+         */
+        function restartGame() {
+            gameOverOverlay.classList.remove('show'); // Hide game over screen
+            gold = 0;
+            gps = 0;
+            cpc = 1;
+            isGameOver = false;
+            numHelperDragons = 0; // Reset helper dragon count
+
+            unlockedSkins.clear(); // Clear randomly unlocked skins
+            purchasedSkins.clear(); // Clear purchased skins
+            currentDragonSkin = '🐲'; // Reset to default skin
+            dragonElement.textContent = currentDragonSkin; // Apply default skin
+            dragonElement.addEventListener('click', clickDragon); // Re-enable dragon clicks
+
+            initializeUpgrades(); // Re-initialize upgrades to reset levels
+            initializeShop(); // Re-initialize shop to reset levels of stackable items
+            updateUI(); // Update UI with reset values
+            startGameLoops(); // Restart game loops
+            showMessage('Game Restarted!', 'green');
+        }
+
+        /**
+         * Starts all main game loops (gold generation, fire spawning).
+         */
+        function startGameLoops() {
+            goldIntervalId = setInterval(() => {
+                gold += gps;
+                updateUI();
+            }, 1000); // Every 1 second for passive gold
+
+            scheduleNextFireSpawn(); // Start the random fire spawning
+        }
+
+        // --- Event Listeners and Initial Setup ---
+
+        // Dragon click listener (initially added here, will be removed/re-added on game over/restart)
+        dragonElement.addEventListener('click', clickDragon);
+
+        // Restart button listener
+        restartButton.addEventListener('click', restartGame);
+
+        // Initial setup on window load
+        window.onload = function() {
+            initializeUpgrades();
+            initializeShop();
+            updateUI(); // Initial UI update
+            startGameLoops(); // Start the game loops
+        };
+    </script>
+</body>
+</html>
